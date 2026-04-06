@@ -422,7 +422,7 @@ function updateMaintBtns(){
 function findSlot(durMin, prefPrinter, dataOv){
   var _evs=(dataOv?dataOv.evs:evs).map(normalizeEv), _maint=dataOv?dataOv.maint:maint, _cfg=dataOv?dataOv.cfg:cfg;
   var fromP=_cfg.from.split(':');var toP=_cfg.to.split(':');
-  var wStart=+fromP[0]*60+ +fromP[1];
+  var wStart=+fromP[0]*60+ +fromP[1];var wEnd=+toP[0]*60+ +toP[1];
   var printers=['sankawa','iwate'].filter(function(p){return!(p==='sankawa'?_maint.s:_maint.i)});
   if(prefPrinter&&printers.indexOf(prefPrinter)>=0)printers=[prefPrinter].concat(printers.filter(function(p){return p!==prefPrinter}));
   if(!printers.length)return null;
