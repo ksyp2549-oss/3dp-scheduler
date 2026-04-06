@@ -688,8 +688,17 @@ document.getElementById('mb-i').addEventListener('click',async function(){
   await persistWithData(data);updateMaintBtns();render();
 });
 
-loadData();
-startPolling();
+(async function(){
+  await initMsal();
+  var account = msalInstance.getActiveAccount() || (msalInstance.getAllAccounts()[0] || null);
+  if(!account){
+    setSyncBadge(false,'ログインが必要です');
+    await msalInstance.loginRedirect({ scopes: PA_SCOPES });
+    return;
+  }
+  loadData();
+  startPolling();
+})();
 </script>
 </body>
 </html>
