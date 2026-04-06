@@ -158,10 +158,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .lane-i{background:rgba(57,211,83,0.02)}
 .lane-maint{background:repeating-linear-gradient(45deg,rgba(255,107,107,0.05),rgba(255,107,107,0.05) 4px,transparent 4px,transparent 10px);cursor:not-allowed}
 .lane-over{outline:1px dashed var(--blue);outline-offset:-1px;background:rgba(79,172,254,0.06)}
-.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:3px 5px;font-size:9px;cursor:grab;overflow:hidden;z-index:10;line-height:1.35;transition:filter 0.15s,transform 0.15s}
+.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:3px 5px;font-size:10px;cursor:grab;overflow:hidden;z-index:10;line-height:1.4;transition:filter 0.15s,transform 0.15s;text-shadow:0 1px 2px rgba(0,0,0,0.8)}
 .ev:hover{filter:brightness(1.15);transform:scaleX(0.98);z-index:20}
-.ev-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ev-sub{opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px;margin-top:1px}
+.ev-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.02em}
+.ev-sub{opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;margin-top:2px}
 .dprev{position:absolute;left:1px;right:1px;border-radius:4px;z-index:8;pointer-events:none;border:1px dashed var(--blue);background:rgba(79,172,254,0.08)}
 
 /* MODAL */
@@ -274,10 +274,10 @@ var POLL_INTERVAL = 15000;
 
 var DAYS=['日','月','火','水','木','金','土'];
 var UC={
-  low:    {bg:'rgba(79,172,254,0.18)',tx:'#7ec8ff',bd:'rgba(79,172,254,0.6)'},
-  mid:    {bg:'rgba(67,233,123,0.15)',tx:'#5ddb8c',bd:'rgba(67,233,123,0.6)'},
-  high:   {bg:'rgba(247,151,30,0.18)',tx:'#ffc060',bd:'rgba(247,151,30,0.6)'},
-  urgent: {bg:'rgba(248,54,0,0.18)',  tx:'#ff7c5c',bd:'rgba(248,54,0,0.6)'}
+  low:    {bg:'rgba(79,172,254,0.30)',tx:'#b8e0ff',bd:'rgba(79,172,254,0.8)'},
+  mid:    {bg:'rgba(67,233,123,0.28)',tx:'#8ff5b0',bd:'rgba(67,233,123,0.8)'},
+  high:   {bg:'rgba(247,151,30,0.32)',tx:'#ffd080',bd:'rgba(247,151,30,0.8)'},
+  urgent: {bg:'rgba(248,54,0,0.32)',  tx:'#ff9980',bd:'rgba(248,54,0,0.8)'}
 };
 var NIGHT_H=16, DAY_H=64;
 function hrH(h){return(h>=8&&h<=20)?DAY_H:NIGHT_H}
@@ -574,7 +574,7 @@ function render(){
           eb.draggable=isFirst; // ドラッグは開始日のみ
           var h2=bot-top;
           var spanLabel=(!isFirst&&!isLast)?'(続き)':(!isFirst)?'(→終)':(!isLast)?'(続く→)':'';
-          eb.innerHTML='<div class="ev-title">'+(ev.cont||'(無題)')+' '+spanLabel+'</div>'+(h2>22?'<div class="ev-sub">'+(ev.req?ev.req+' ':'')+fmtHm(ev.sH,ev.sM)+'–'+fmtHm(ev.eH,ev.eM)+(ev.startDay!==ev.endDay?' ('+ev.endDay+')':'')+'</div>':'');
+          var matLabel=ev.mat?'['+ev.mat+'] ':'';eb.innerHTML='<div class="ev-title">'+matLabel+(ev.cont||'(無題)')+' '+spanLabel+'</div>'+(h2>22?'<div class="ev-sub">'+(ev.req?ev.req+' ':'')+fmtHm(ev.sH,ev.sM)+'–'+fmtHm(ev.eH,ev.eM)+(ev.startDay!==ev.endDay?' ('+ev.endDay+')':'')+'</div>':'');
           eb.addEventListener('click',function(e){e.stopPropagation();openJobModal(ev,ev.startDay,ev.printer);});
           if(isFirst){
             eb.addEventListener('dragstart',function(e){dragEv=ev;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',ev.id);setTimeout(function(){eb.style.opacity='0.3';},0);});
@@ -643,6 +643,22 @@ function openJobModal(ev, day, pr){
   updU();
   var uField=document.createElement('div');uField.className='fl';uField.appendChild(mLabel('緊急度'));uField.appendChild(ubar);box.appendChild(uField);
 
+  // 材料選択
+  var curMat=(ev&&ev.mat)||'PLA';
+  var matDefs=[{k:'PLA',label:'PLA'},{k:'PP-GW',label:'PP-GW'},{k:'ABS',label:'ABS'},{k:'PETG',label:'PETG'},{k:'その他',label:'その他'}];
+  var matBar=document.createElement('div');matBar.style.cssText='display:flex;gap:4px;flex-wrap:wrap';
+  var matBtns={};
+  matDefs.forEach(function(md){
+    var mb=document.createElement('div');
+    mb.style.cssText='padding:5px 10px;font-size:11px;border-radius:7px;border:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--text2);background:rgba(255,255,255,0.03);transition:all 0.15s';
+    mb.textContent=md.label;matBtns[md.k]=mb;
+    mb.addEventListener('click',function(){curMat=md.k;updMat();});
+    matBar.appendChild(mb);
+  });
+  function updMat(){matDefs.forEach(function(md){var b=matBtns[md.k];if(md.k===curMat){b.style.background='rgba(79,172,254,0.15)';b.style.color='#4facfe';b.style.borderColor='#4facfe';}else{b.style.background='';b.style.color='var(--text2)';b.style.borderColor='var(--border)';}});}
+  updMat();
+  var matField=document.createElement('div');matField.className='fl';matField.appendChild(mLabel('材料'));matField.appendChild(matBar);box.appendChild(matField);
+
   var inMemo=mTextarea(ev?ev.memo:'','任意メモ');
   box.appendChild(mField('メモ',inMemo));
   box.appendChild(mDivider());
@@ -671,7 +687,7 @@ function openJobModal(ev, day, pr){
     var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
     var slot=findSlot(durMin,curP,searchData);
     if(!slot){statusEl.style.display='block';statusEl.textContent='⚠ 21日以内に空きが見つかりませんでした。設定を確認してください。';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
-    var newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,req:inReq.value,cont:inCont.value,memo:inMemo.value};
+    var newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
     else latest.evs.push(newEv);
     await persistWithData(latest);
