@@ -330,6 +330,11 @@ async function fetchLatestData(){
   try{
     var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
     console.log('[PA_READ] status:', r.status);
+    if(r.status===401){
+      await initMsal();
+      var account=msalInstance.getActiveAccount()||(msalInstance.getAllAccounts()[0]||null);
+      if(!account){await msalInstance.loginRedirect({scopes:PA_SCOPES});return null;}
+    }
     if(!r.ok)return null;
     var raw=await r.text();
     console.log('[PA_READ] raw:', raw.substring(0,300));
