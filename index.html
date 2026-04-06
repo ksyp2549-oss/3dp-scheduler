@@ -449,7 +449,7 @@ function findSlot(durMin, prefPrinter, dataOv){
       if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(earliest,nowMin);}
       var blocked=prEvs.map(function(ev){var ab=evToAbs(ev);return{s:ab.s-_cfg.gap,e:ab.e+_cfg.gap};});
       var cursor=earliest;
-      var absEnd=dayAbsBase+24*60*3; // 最大3日先まで許容
+      var absEnd=dayAbsBase+wEnd+durMin; // wEnd+dur分まで（日またぎ許容）
       while(cursor+durMin<=absEnd){
         var ok=true;
         for(var bi2=0;bi2<blocked.length;bi2++){var b=blocked[bi2];if(cursor<b.e&&cursor+durMin>b.s){ok=false;cursor=Math.max(cursor+15,b.e);break;}}
