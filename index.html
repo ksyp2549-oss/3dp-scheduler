@@ -158,11 +158,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .lane-i{background:rgba(57,211,83,0.02)}
 .lane-maint{background:repeating-linear-gradient(45deg,rgba(255,107,107,0.05),rgba(255,107,107,0.05) 4px,transparent 4px,transparent 10px);cursor:not-allowed}
 .lane-over{outline:1px dashed var(--blue);outline-offset:-1px;background:rgba(79,172,254,0.06)}
-.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:4px 3px;font-size:10px;cursor:grab;overflow:hidden;z-index:10;line-height:1.3;transition:filter 0.15s,transform 0.15s;text-shadow:0 1px 2px rgba(0,0,0,0.8);display:flex;flex-direction:row;align-items:flex-start;gap:2px}
+.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:3px 4px;font-size:10px;cursor:grab;overflow:hidden;z-index:10;line-height:1.3;transition:filter 0.15s,transform 0.15s;text-shadow:0 1px 2px rgba(0,0,0,0.9)}
 .ev:hover{filter:brightness(1.15);transform:scaleX(0.98);z-index:20}
-.ev-title{font-weight:700;writing-mode:vertical-rl;text-orientation:mixed;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-height:100%;letter-spacing:0.05em}
-.ev-sub{opacity:0.85;writing-mode:vertical-rl;text-orientation:mixed;overflow:hidden;white-space:nowrap;font-size:9px;margin-top:2px;max-height:100%}
+.ev-title{font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ev-sub{opacity:0.9;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px;margin-top:1px}
 .dprev{position:absolute;left:1px;right:1px;border-radius:4px;z-index:8;pointer-events:none;border:1px dashed var(--blue);background:rgba(79,172,254,0.08)}
+.ev-tooltip{display:none;position:fixed;z-index:999;background:linear-gradient(160deg,#1a2233,#222d42);border:1px solid rgba(79,172,254,0.4);border-radius:10px;padding:10px 13px;min-width:160px;max-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.7);pointer-events:none;font-size:11px;line-height:1.6}
+.ev-tooltip.show{display:block}
+.ev-tt-title{font-weight:700;font-size:12px;margin-bottom:4px;color:#fff}
+.ev-tt-row{color:var(--text2);display:flex;gap:6px}
+.ev-tt-label{color:var(--text3);min-width:40px;flex-shrink:0}
 
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(4px)}
@@ -575,7 +580,9 @@ function render(){
           var h2=bot-top;
           var spanLabel=(!isFirst&&!isLast)?'(続き)':(!isFirst)?'(→終)':(!isLast)?'(続く→)':'';
           var matLabel=ev.mat?'['+ev.mat+'] ':'';eb.innerHTML='<div class="ev-title">'+matLabel+(ev.cont||'(無題)')+' '+spanLabel+'</div>'+(h2>22?'<div class="ev-sub">'+(ev.req?ev.req+' ':'')+fmtHm(ev.sH,ev.sM)+'–'+fmtHm(ev.eH,ev.eM)+(ev.startDay!==ev.endDay?' ('+ev.endDay+')':'')+'</div>':'');
-          eb.addEventListener('click',function(e){e.stopPropagation();openJobModal(ev,ev.startDay,ev.printer);});
+          eb.addEventListener('click',function(e){e.stopPropagation();hideTT();openJobModal(ev,ev.startDay,ev.printer);});
+          eb.addEventListener('mousemove',function(e){showTT(ev,e.clientX,e.clientY);});
+          eb.addEventListener('mouseleave',function(){hideTT();});
           if(isFirst){
             eb.addEventListener('dragstart',function(e){dragEv=ev;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',ev.id);setTimeout(function(){eb.style.opacity='0.3';},0);});
             eb.addEventListener('dragend',function(){eb.style.opacity='';dragEv=null;document.querySelectorAll('.lane-over').forEach(function(l){l.classList.remove('lane-over')});document.querySelectorAll('.dprev').forEach(function(el){el.remove()});});
@@ -753,6 +760,29 @@ function showToast(msg){
   var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);
   setTimeout(function(){t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},400);},2800);
 }
+
+// ===== TOOLTIP =====
+var _tt=document.createElement('div');_tt.className='ev-tooltip';document.body.appendChild(_tt);
+function showTT(ev,x,y){
+  var _e=normalizeEv(ev);
+  var dur=Math.round((dayDiff(_e.startDay,_e.endDay)*1440+toMin(_e.eH,_e.eM)-toMin(_e.sH,_e.sM))/60*10)/10;
+  var matStr=ev.mat?('<div class="ev-tt-row"><span class="ev-tt-label">材料</span><span>'+ev.mat+'</span></div>'):'';
+  _tt.innerHTML='<div class="ev-tt-title">'+(ev.cont||'(無題)')+'</div>'
+    +'<div class="ev-tt-row"><span class="ev-tt-label">依頼者</span><span>'+(ev.req||'—')+'</span></div>'
+    +'<div class="ev-tt-row"><span class="ev-tt-label">時間</span><span>'+fmtHm(_e.sH,_e.sM)+'–'+fmtHm(_e.eH,_e.eM)+(_e.startDay!==_e.endDay?' ('+_e.endDay+')':'')+'</span></div>'
+    +'<div class="ev-tt-row"><span class="ev-tt-label">印刷時間</span><span>'+dur+'h</span></div>'
+    +matStr
+    +(ev.memo?'<div class="ev-tt-row"><span class="ev-tt-label">メモ</span><span>'+ev.memo+'</span></div>':'');
+  var vw=window.innerWidth,vh=window.innerHeight;
+  var tx=x+12,ty=y+12;
+  _tt.style.left=tx+'px';_tt.style.top=ty+'px';
+  _tt.classList.add('show');
+  // 画面端補正
+  var r=_tt.getBoundingClientRect();
+  if(r.right>vw-8)_tt.style.left=(x-r.width-8)+'px';
+  if(r.bottom>vh-8)_tt.style.top=(y-r.height-8)+'px';
+}
+function hideTT(){_tt.classList.remove('show');}
 
 // ===== INIT =====
 document.getElementById('btnPrev').addEventListener('click',function(){wOff--;render()});
