@@ -292,6 +292,9 @@ function fmtHm(h,m){return('0'+h).slice(-2)+':'+('0'+(m||0)).slice(-2)}
 function toMin(h,m){return h*60+(m||0)}
 function isToday(d){return d.toDateString()===new Date().toDateString()}
 function getWS(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d}
+function addDays(ds,n){var d=new Date(ds.replace(/-/g,"/"));d.setDate(d.getDate()+n);return fmtD(d);}
+function dayDiff(ds1,ds2){var a=new Date(ds1.replace(/-/g,"/"));var b=new Date(ds2.replace(/-/g,"/"));return Math.round((b-a)/86400000);}
+function normalizeEv(ev){if(!ev.startDay){ev.startDay=ev.day;ev.endDay=ev.day;}return ev;}
 
 // ===== SharePoint REST API =====
 function setSyncBadge(ok, msg){
@@ -346,7 +349,7 @@ async function fetchLatestData(){
       console.log('[PA_READ] titleStr:', titleStr ? titleStr.substring(0,100) : '(empty)');
       if(titleStr){
         var payload=JSON.parse(titleStr);
-        return{evs:payload.evs||[],maint:Object.assign({s:false,i:false},payload.maint||{}),cfg:Object.assign({from:'09:00',to:'17:00',gap:240,weekend:false,wdMode:'weekday',startOffset:60},payload.cfg||{})};
+        return{evs:(payload.evs||[]).map(normalizeEv),maint:Object.assign({s:false,i:false},payload.maint||{}),cfg:Object.assign({from:'09:00',to:'17:00',gap:240,weekend:false,wdMode:'weekday',startOffset:60},payload.cfg||{})};
       }
     }
   }catch(e){console.log('[PA_READ] error:',e);}
@@ -409,31 +412,49 @@ function updateMaintBtns(){
 // ===== AUTO PLACE =====
 // dataOv: オプションのデータオーバーライド（最新サーバーデータで検索する場合に使用）
 function findSlot(durMin, prefPrinter, dataOv){
-  var _evs=dataOv?dataOv.evs:evs, _maint=dataOv?dataOv.maint:maint, _cfg=dataOv?dataOv.cfg:cfg;
+  var _evs=(dataOv?dataOv.evs:evs).map(normalizeEv), _maint=dataOv?dataOv.maint:maint, _cfg=dataOv?dataOv.cfg:cfg;
   var fromP=_cfg.from.split(':');var toP=_cfg.to.split(':');
-  var wStart=+fromP[0]*60+ +fromP[1];var wEnd=+toP[0]*60+ +toP[1];
+  var wStart=+fromP[0]*60+ +fromP[1];
   var printers=['sankawa','iwate'].filter(function(p){return!(p==='sankawa'?_maint.s:_maint.i)});
   if(prefPrinter&&printers.indexOf(prefPrinter)>=0)printers=[prefPrinter].concat(printers.filter(function(p){return p!==prefPrinter}));
   if(!printers.length)return null;
   var now=new Date();var today=new Date();today.setHours(0,0,0,0);
-  for(var dayOffset=0;dayOffset<21;dayOffset++){
+  // 各イベントを「開始日からの絶対分」でブロック管理
+  function evToAbs(ev){
+    var base=fmtD(today);
+    var sd=dayDiff(base,ev.startDay)*1440+toMin(ev.sH,ev.sM);
+    var ed=dayDiff(base,ev.endDay)*1440+toMin(ev.eH,ev.eM);
+    return{s:sd,e:ed};
+  }
+  for(var dayOffset=0;dayOffset<28;dayOffset++){
     var d=new Date(today);d.setDate(today.getDate()+dayOffset);
     var dow=d.getDay();var isWeekend=(dow===0||dow===6);
     var mode=_cfg.wdMode||'weekday';
     if(mode==='weekday'&&isWeekend)continue;
     if(mode==='weekend'&&!isWeekend)continue;
     var ds=fmtD(d);
+    var dayAbsBase=dayOffset*1440;
     for(var pi=0;pi<printers.length;pi++){
       var pr=printers[pi];
-      var dayEvs=_evs.filter(function(ev){return ev.day===ds&&ev.printer===pr}).sort(function(a,b){return toMin(a.sH,a.sM)-toMin(b.sH,b.sM)});
-      var earliest=wStart;
-      if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(wStart,nowMin);}
-      var blocked=dayEvs.map(function(ev){return{s:toMin(ev.sH,ev.sM)-_cfg.gap,e:toMin(ev.eH,ev.eM)+_cfg.gap}});
+      var prEvs=_evs.filter(function(ev){return ev.printer===pr});
+      var earliest=dayAbsBase+wStart;
+      if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(earliest,nowMin);}
+      var blocked=prEvs.map(function(ev){var ab=evToAbs(ev);return{s:ab.s-_cfg.gap,e:ab.e+_cfg.gap};});
       var cursor=earliest;
-      while(cursor+durMin<=wEnd){
+      var absEnd=dayAbsBase+24*60*3; // 最大3日先まで許容
+      while(cursor+durMin<=absEnd){
         var ok=true;
-        for(var bi=0;bi<blocked.length;bi++){var b=blocked[bi];if(cursor<b.e&&cursor+durMin>b.s){ok=false;cursor=b.e;break;}}
-        if(ok)return{day:ds,printer:pr,startMin:cursor,endMin:cursor+durMin};
+        for(var bi2=0;bi2<blocked.length;bi2++){var b=blocked[bi2];if(cursor<b.e&&cursor+durMin>b.s){ok=false;cursor=Math.max(cursor+15,b.e);break;}}
+        if(ok){
+          var startMin=cursor-dayAbsBase;
+          var endMin=startMin+durMin;
+          var startDay=ds;
+          var endDayD=new Date(d);endDayD.setDate(d.getDate()+Math.floor(endMin/1440));
+          var endDay=fmtD(endDayD);
+          var sH=Math.floor((startMin%1440)/60),sM=startMin%60;
+          var eH=Math.floor((endMin%1440)/60),eM=endMin%60;
+          return{startDay:startDay,endDay:endDay,printer:pr,sH:sH,sM:sM,eH:eH,eM:eM};
+        }
       }
     }
   }
@@ -486,7 +507,7 @@ function render(){
           document.querySelectorAll('.dprev').forEach(function(el){el.remove()});
           if(!dragEv||maint[pk])return;
           lane.classList.add('lane-over');
-          var rect=lane.getBoundingClientRect();var y=e.clientY-rect.top;
+          var rect=lane.getBoundingClientRect();var y=e.clientY-rect.top+lane.scrollTop;
           var acc=0,cHr=0,cFr=0;for(var hr=0;hr<24;hr++){var hh=hrH(hr);if(y<acc+hh){cHr=hr;cFr=(y-acc)/hh;break;}acc+=hh;}
           var rawMin=cHr*60+Math.round(cFr*60/15)*15;var dur=toMin(dragEv.eH,dragEv.eM)-toMin(dragEv.sH,dragEv.sM);
           var ns=rawMin,ne=ns+dur;var top=hrTop(Math.floor(ns/60))+(ns%60)/60*hrH(Math.floor(ns/60));var neh=Math.min(Math.floor(ne/60),23);var bot=hrTop(neh)+(ne%60)/60*hrH(neh);
@@ -496,29 +517,53 @@ function render(){
         lane.addEventListener('drop',async function(e){
           e.preventDefault();lane.classList.remove('lane-over');document.querySelectorAll('.dprev').forEach(function(el){el.remove()});
           if(!dragEv||maint[pk])return;
-          var rect=lane.getBoundingClientRect();var y=e.clientY-rect.top;
+          var rect=lane.getBoundingClientRect();var y=e.clientY-rect.top+lane.scrollTop;
           var acc=0,cHr=0,cFr=0;for(var hr=0;hr<24;hr++){var hh=hrH(hr);if(y<acc+hh){cHr=hr;cFr=(y-acc)/hh;break;}acc+=hh;}
-          var rawMin=cHr*60+Math.round(cFr*60/15)*15;var dur=toMin(dragEv.eH,dragEv.eM)-toMin(dragEv.sH,dragEv.sM);
-          var ns=Math.max(0,Math.min(rawMin,23*60)),ne=ns+dur;if(ne>24*60)return;
+          var rawMin=cHr*60+Math.round(cFr*60/15)*15;
+          var _dev=normalizeEv(dragEv);var dur=dayDiff(_dev.startDay,_dev.endDay)*1440+toMin(_dev.eH,_dev.eM)-toMin(_dev.sH,_dev.sM);
+          var ns=Math.max(0,rawMin),ne=ns+dur;
           var movedId=dragEv.id;
           dragEv=null;
           // 最新データを取得してから差分適用（同時編集対応）
           var data=(await fetchLatestData())||localData();
           var idx=data.evs.findIndex(function(x){return x.id===movedId});
-          if(idx>=0){data.evs[idx].day=ds;data.evs[idx].sH=Math.floor(ns/60);data.evs[idx].sM=ns%60;data.evs[idx].eH=Math.floor(ne/60);data.evs[idx].eM=ne%60;data.evs[idx].printer=pr;}
+          if(idx>=0){
+            var dur2=ne-ns;
+            var endDayD=new Date(ds.replace(/-/g,'/'));endDayD.setDate(endDayD.getDate()+Math.floor(ne/1440));
+            data.evs[idx].startDay=ds;data.evs[idx].day=ds;
+            data.evs[idx].endDay=fmtD(endDayD);
+            data.evs[idx].sH=Math.floor((ns%1440)/60);data.evs[idx].sM=ns%60;
+            data.evs[idx].eH=Math.floor((ne%1440)/60);data.evs[idx].eM=ne%1440%60;
+            data.evs[idx].printer=pr;
+          }
           await persistWithData(data);render();
         });
-        evs.filter(function(ev){return ev.day===ds&&ev.printer===pr}).forEach(function(ev){
+        evs.map(normalizeEv).filter(function(ev){
+          // この日(ds)がイベントの期間内であり、かつプリンターが一致するもの
+          return ev.printer===pr && dayDiff(ev.startDay,ds)>=0 && dayDiff(ds,ev.endDay)>=0;
+        }).forEach(function(ev){
           var c=UC[ev.u]||UC.low;
-          var top=hrTop(ev.sH)+ev.sM/60*hrH(ev.sH);var neh=Math.min(ev.eH,23);var bot=hrTop(neh)+ev.eM/60*hrH(neh);
+          var isFirst=(ev.startDay===ds);
+          var isLast=(ev.endDay===ds);
+          var topMin=isFirst?(ev.sH*60+ev.sM):0;
+          var botMin=isLast?(ev.eH*60+ev.eM):24*60;
+          var top=hrTop(Math.floor(topMin/60))+(topMin%60)/60*hrH(Math.floor(topMin/60));
+          var botH=Math.min(Math.floor(botMin/60),23);
+          var bot=hrTop(botH)+(botMin%60)/60*hrH(botH);
           var eb=document.createElement('div');eb.className='ev';
-          eb.style.cssText='top:'+top+'px;height:'+Math.max(bot-top-1,10)+'px;background:'+c.bg+';border-left:3px solid '+c.bd+';color:'+c.tx;
-          eb.draggable=true;
+          var borderR=(!isLast)?'border-radius:4px 4px 0 0':(!isFirst)?'border-radius:0 0 4px 4px':'';
+          eb.style.cssText='top:'+top+'px;height:'+Math.max(bot-top-1,10)+'px;background:'+c.bg+';border-left:3px solid '+c.bd+';color:'+c.tx+(borderR?';'+borderR:'');
+          if(!isFirst){eb.style.borderTop='1px dashed '+c.bd;}
+          if(!isLast){eb.style.borderBottom='1px dashed '+c.bd;}
+          eb.draggable=isFirst; // ドラッグは開始日のみ
           var h2=bot-top;
-          eb.innerHTML='<div class="ev-title">'+(ev.cont||'(無題)')+'</div>'+(h2>22?'<div class="ev-sub">'+(ev.req?ev.req+' ':'')+fmtHm(ev.sH,ev.sM)+'–'+fmtHm(ev.eH,ev.eM)+'</div>':'');
-          eb.addEventListener('click',function(e){e.stopPropagation();openJobModal(ev,ev.day,ev.printer);});
-          eb.addEventListener('dragstart',function(e){dragEv=ev;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',ev.id);setTimeout(function(){eb.style.opacity='0.3';},0);});
-          eb.addEventListener('dragend',function(){eb.style.opacity='';dragEv=null;document.querySelectorAll('.lane-over').forEach(function(l){l.classList.remove('lane-over')});document.querySelectorAll('.dprev').forEach(function(el){el.remove()});});
+          var spanLabel=(!isFirst&&!isLast)?'(続き)':(!isFirst)?'(→終)':(!isLast)?'(続く→)':'';
+          eb.innerHTML='<div class="ev-title">'+(ev.cont||'(無題)')+' '+spanLabel+'</div>'+(h2>22?'<div class="ev-sub">'+(ev.req?ev.req+' ':'')+fmtHm(ev.sH,ev.sM)+'–'+fmtHm(ev.eH,ev.eM)+(ev.startDay!==ev.endDay?' ('+ev.endDay+')':'')+'</div>':'');
+          eb.addEventListener('click',function(e){e.stopPropagation();openJobModal(ev,ev.startDay,ev.printer);});
+          if(isFirst){
+            eb.addEventListener('dragstart',function(e){dragEv=ev;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',ev.id);setTimeout(function(){eb.style.opacity='0.3';},0);});
+            eb.addEventListener('dragend',function(){eb.style.opacity='';dragEv=null;document.querySelectorAll('.lane-over').forEach(function(l){l.classList.remove('lane-over')});document.querySelectorAll('.dprev').forEach(function(el){el.remove()});});
+          }
           lane.appendChild(eb);
         });
         lanesEl.appendChild(lane);
@@ -564,7 +609,7 @@ function openJobModal(ev, day, pr){
   var durField=document.createElement('div');durField.className='fl';durField.appendChild(mLabel('印刷時間'));durField.appendChild(durRow);
   box.appendChild(durField);
 
-  if(isEdit){var ti=document.createElement('div');ti.style.cssText='font-size:11px;color:var(--text2);padding:5px 9px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:10px';ti.textContent='現在: '+ev.day+' '+fmtHm(ev.sH,ev.sM)+'〜'+fmtHm(ev.eH,ev.eM)+'　('+ev.printer+')';box.appendChild(ti);}
+  if(isEdit){var ti=document.createElement('div');ti.style.cssText='font-size:11px;color:var(--text2);padding:5px 9px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:10px';var _ne=normalizeEv(ev);ti.textContent='現在: '+_ne.startDay+' '+fmtHm(_ne.sH,_ne.sM)+'〜'+(_ne.startDay!==_ne.endDay?_ne.endDay+' ':'')+fmtHm(_ne.eH,_ne.eM)+'　('+_ne.printer+')';box.appendChild(ti);}
 
   box.appendChild(mDivider());
 
@@ -610,14 +655,14 @@ function openJobModal(ev, day, pr){
     var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
     var slot=findSlot(durMin,curP,searchData);
     if(!slot){statusEl.style.display='block';statusEl.textContent='⚠ 21日以内に空きが見つかりませんでした。設定を確認してください。';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
-    var newEv={id:isEdit?ev.id:String(Date.now()),day:slot.day,sH:Math.floor(slot.startMin/60),sM:slot.startMin%60,eH:Math.floor(slot.endMin/60),eM:slot.endMin%60,printer:slot.printer,u:curU,req:inReq.value,cont:inCont.value,memo:inMemo.value};
+    var newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,req:inReq.value,cont:inCont.value,memo:inMemo.value};
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
     else latest.evs.push(newEv);
     await persistWithData(latest);
-    var evDate=new Date(slot.day);var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-tw.getDay());var ew=new Date(evDate);ew.setDate(evDate.getDate()-evDate.getDay());
+    var evDate=new Date(slot.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-tw.getDay());var ew=new Date(evDate);ew.setDate(evDate.getDate()-evDate.getDay());
     wOff=Math.round((ew-tw)/(7*24*3600*1000));
     document.body.removeChild(ov);render();
-    showToast('✓ '+slot.day+' '+(slot.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
+    showToast('✓ '+slot.startDay+(slot.startDay!==slot.endDay?' → '+slot.endDay:'')+' '+(slot.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
   });
   brow.appendChild(cancelbtn);brow.appendChild(savebtn);box.appendChild(brow);
   var note=document.createElement('div');note.className='modal-note';note.textContent='稼働時間帯・間隔は⚙設定から変更できます';box.appendChild(note);
