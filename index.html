@@ -329,20 +329,24 @@ var SP_ITEM_ID = null; // 既存アイテムのID
 async function fetchLatestData(){
   try{
     var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    console.log('[PA_READ] status:', r.status);
     if(!r.ok)return null;
     var raw=await r.text();
+    console.log('[PA_READ] raw:', raw.substring(0,300));
     var items=[];
-    try{var parsed=JSON.parse(raw);items=Array.isArray(parsed)?parsed:(parsed.value||[parsed]);}catch(e){}
+    try{var parsed=JSON.parse(raw);items=Array.isArray(parsed)?parsed:(parsed.value||[parsed]);}catch(e){console.log('[PA_READ] parse err:',e);}
+    console.log('[PA_READ] items.length:', items.length, JSON.stringify(items[0]).substring(0,100));
     if(items.length>0){
       var item=items[items.length-1];
       SP_ITEM_ID=item.Id||item.id||1;
       var titleStr=item.Title||item.title||'';
+      console.log('[PA_READ] titleStr:', titleStr.substring(0,100));
       if(titleStr){
         var payload=JSON.parse(titleStr);
         return{evs:payload.evs||[],maint:Object.assign({s:false,i:false},payload.maint||{}),cfg:Object.assign({from:'09:00',to:'17:00',gap:240,weekend:false,wdMode:'weekday',startOffset:60},payload.cfg||{})};
       }
     }
-  }catch(e){}
+  }catch(e){console.log('[PA_READ] error:',e);}
   return null;
 }
 
