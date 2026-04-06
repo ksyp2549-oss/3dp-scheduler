@@ -158,10 +158,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .lane-i{background:rgba(57,211,83,0.02)}
 .lane-maint{background:repeating-linear-gradient(45deg,rgba(255,107,107,0.05),rgba(255,107,107,0.05) 4px,transparent 4px,transparent 10px);cursor:not-allowed}
 .lane-over{outline:1px dashed var(--blue);outline-offset:-1px;background:rgba(79,172,254,0.06)}
-.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:3px 5px;font-size:10px;cursor:grab;overflow:hidden;z-index:10;line-height:1.4;transition:filter 0.15s,transform 0.15s;text-shadow:0 1px 2px rgba(0,0,0,0.8)}
+.ev{position:absolute;left:1px;right:1px;border-radius:4px;padding:4px 3px;font-size:10px;cursor:grab;overflow:hidden;z-index:10;line-height:1.3;transition:filter 0.15s,transform 0.15s;text-shadow:0 1px 2px rgba(0,0,0,0.8);display:flex;flex-direction:row;align-items:flex-start;gap:2px}
 .ev:hover{filter:brightness(1.15);transform:scaleX(0.98);z-index:20}
-.ev-title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0.02em}
-.ev-sub{opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;margin-top:2px}
+.ev-title{font-weight:700;writing-mode:vertical-rl;text-orientation:mixed;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-height:100%;letter-spacing:0.05em}
+.ev-sub{opacity:0.85;writing-mode:vertical-rl;text-orientation:mixed;overflow:hidden;white-space:nowrap;font-size:9px;margin-top:2px;max-height:100%}
 .dprev{position:absolute;left:1px;right:1px;border-radius:4px;z-index:8;pointer-events:none;border:1px dashed var(--blue);background:rgba(79,172,254,0.08)}
 
 /* MODAL */
@@ -274,10 +274,10 @@ var POLL_INTERVAL = 15000;
 
 var DAYS=['日','月','火','水','木','金','土'];
 var UC={
-  low:    {bg:'rgba(79,172,254,0.30)',tx:'#b8e0ff',bd:'rgba(79,172,254,0.8)'},
-  mid:    {bg:'rgba(67,233,123,0.28)',tx:'#8ff5b0',bd:'rgba(67,233,123,0.8)'},
-  high:   {bg:'rgba(247,151,30,0.32)',tx:'#ffd080',bd:'rgba(247,151,30,0.8)'},
-  urgent: {bg:'rgba(248,54,0,0.32)',  tx:'#ff9980',bd:'rgba(248,54,0,0.8)'}
+  low:    {bg:'rgba(30,80,160,0.75)',  tx:'#ffffff',bd:'#4facfe'},
+  mid:    {bg:'rgba(20,120,60,0.75)',  tx:'#ffffff',bd:'#43e97b'},
+  high:   {bg:'rgba(160,90,10,0.80)', tx:'#ffffff',bd:'#f7971e'},
+  urgent: {bg:'rgba(160,30,10,0.80)', tx:'#ffffff',bd:'#f83600'}
 };
 var NIGHT_H=16, DAY_H=64;
 function hrH(h){return(h>=8&&h<=20)?DAY_H:NIGHT_H}
