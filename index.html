@@ -449,11 +449,13 @@ function findSlot(durMin, prefPrinter, dataOv){
       if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(earliest,dayAbsBase+nowMin);}
       var blocked=prEvs.map(function(ev){var ab=evToAbs(ev);return{s:ab.s-_cfg.gap,e:ab.e+_cfg.gap};});
       var cursor=earliest;
-      var absEnd=dayAbsBase+wEnd; // 稼働終了時刻まで（日またぎはdurMinで自動判定）
-      while(cursor<=absEnd){
+      var absEnd=dayAbsBase+wEnd; // 稼働終了時刻まで
+      var loopLimit=200; // 無限ループ防止
+      while(cursor<=absEnd && loopLimit-->0){
         var ok=true;
         for(var bi2=0;bi2<blocked.length;bi2++){var b=blocked[bi2];if(cursor<b.e&&cursor+durMin>b.s){ok=false;cursor=Math.max(cursor+15,b.e);break;}}
         if(ok){
+          if(cursor+durMin>absEnd+durMin){break;} // 終了時刻オーバー
           var startMin=cursor-dayAbsBase;
           var endMin=startMin+durMin;
           var startDay=ds;
@@ -681,8 +683,13 @@ function openJobModal(ev, day, pr){
     if(!dur||dur<=0){statusEl.style.display='block';statusEl.textContent='⚠ 印刷時間を入力してください';return;}
     var durMin=Math.round(dur*60);
     savebtn.disabled=true;savebtn.textContent='🔍 検索中...';statusEl.style.display='none';
-    // 保存直前に最新データを取得（同時編集対応）
-    var latest=(await fetchLatestData())||localData();
+    // 保存直前に最新データを取得（同時編集対応）タイムアウト10秒
+    var latest;
+    try{
+      var fetchP=fetchLatestData();
+      var timeoutP=new Promise(function(res){setTimeout(function(){res(null);},10000);});
+      latest=(await Promise.race([fetchP,timeoutP]))||localData();
+    }catch(e){latest=localData();}
     // 空き検索用データ（編集中のジョブは除外）
     var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
     var slot=findSlot(durMin,curP,searchData);
