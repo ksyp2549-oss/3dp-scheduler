@@ -608,9 +608,9 @@ function openJobModal(ev, day, pr){
   box.appendChild(ptField);updPT();
 
   // Duration
-  var durVal=isEdit?((toMin(ev.eH,ev.eM)-toMin(ev.sH,ev.sM))/60).toFixed(1):'3';
+  var durVal=isEdit?(function(){var _e=normalizeEv(ev);return(dayDiff(_e.startDay,_e.endDay)*1440+toMin(_e.eH,_e.eM)-toMin(_e.sH,_e.sM))/60;}()).toFixed(1):'3';
   var durRow=document.createElement('div');durRow.className='dur-row';
-  var inDur=mInput('number',durVal);inDur.className='fi dur-input';inDur.min='0.5';inDur.max='24';inDur.step='0.5';
+  var inDur=mInput('number',durVal);inDur.className='fi dur-input';inDur.min='0.5';inDur.max='96';inDur.step='0.5';
   var durU=document.createElement('span');durU.className='dur-unit';durU.textContent='時間';
   var durHint=document.createElement('span');durHint.className='dur-hint';durHint.textContent='現在時刻から空き検索';
   durRow.appendChild(inDur);durRow.appendChild(durU);durRow.appendChild(durHint);
