@@ -446,11 +446,11 @@ function findSlot(durMin, prefPrinter, dataOv){
       var pr=printers[pi];
       var prEvs=_evs.filter(function(ev){return ev.printer===pr});
       var earliest=dayAbsBase+wStart;
-      if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(earliest,nowMin);}
+      if(dayOffset===0){var nowMin=now.getHours()*60+now.getMinutes()+(_cfg.startOffset||60);nowMin=Math.ceil(nowMin/15)*15;earliest=Math.max(earliest,dayAbsBase+nowMin);}
       var blocked=prEvs.map(function(ev){var ab=evToAbs(ev);return{s:ab.s-_cfg.gap,e:ab.e+_cfg.gap};});
       var cursor=earliest;
-      var absEnd=dayAbsBase+wEnd+durMin; // wEnd+dur分まで（日またぎ許容）
-      while(cursor+durMin<=absEnd){
+      var absEnd=dayAbsBase+wEnd; // 稼働終了時刻まで（日またぎはdurMinで自動判定）
+      while(cursor<=absEnd){
         var ok=true;
         for(var bi2=0;bi2<blocked.length;bi2++){var b=blocked[bi2];if(cursor<b.e&&cursor+durMin>b.s){ok=false;cursor=Math.max(cursor+15,b.e);break;}}
         if(ok){
