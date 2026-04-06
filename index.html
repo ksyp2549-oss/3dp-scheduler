@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3DP スケジューラー</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 <style>
 :root{
   --bg:#0d1117;
@@ -156,6 +157,43 @@ textarea.fi{resize:vertical;min-height:42px}
 </div>
 
 <script>
+// ===== MSAL 認証設定 =====
+var MSAL_CONFIG = {
+  auth: {
+    clientId: 'a55b9b37-d729-48b5-a2ea-3fa0183926ee',
+    authority: 'https://login.microsoftonline.com/59ffe9c5-87c8-45f8-bbe3-23567148f2c0',
+    redirectUri: 'https://ksyp2549-oss.github.io/3dp-scheduler/'
+  },
+  cache: { cacheLocation: 'sessionStorage' }
+};
+var PA_SCOPES = ['https://service.flow.microsoft.com//.default'];
+var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+var _msalInitialized = false;
+
+async function initMsal() {
+  if (_msalInitialized) return;
+  await msalInstance.initialize();
+  _msalInitialized = true;
+  var resp = await msalInstance.handleRedirectPromise();
+  if (resp) msalInstance.setActiveAccount(resp.account);
+}
+
+async function getToken() {
+  await initMsal();
+  var account = msalInstance.getActiveAccount() || (msalInstance.getAllAccounts()[0] || null);
+  if (!account) {
+    await msalInstance.loginRedirect({ scopes: PA_SCOPES });
+    return null;
+  }
+  try {
+    var r = await msalInstance.acquireTokenSilent({ scopes: PA_SCOPES, account: account });
+    return r.accessToken;
+  } catch(e) {
+    await msalInstance.acquireTokenRedirect({ scopes: PA_SCOPES, account: account });
+    return null;
+  }
+}
+
 // ===== CONFIG =====
 // ★ SharePoint設定 ★
 var SP_SITE = 'https://kasaigroup-my.sharepoint.com/personal/kiyohara-syoki_kasai-group_com';
@@ -220,7 +258,9 @@ var SP_ITEM_ID = null; // 既存アイテムのID
 // SharePointから最新データを取得（グローバル状態は更新しない）
 async function fetchLatestData(){
   try{
-    var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    var token=await getToken();
+    if(!token)return null;
+    var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({})});
     if(!r.ok)return null;
     var raw=await r.text();
     var items=[];
@@ -248,9 +288,11 @@ async function persistWithData(data){
   evs=data.evs; maint=data.maint; cfg=data.cfg;
   try{localStorage.setItem('3dp_sp_local',JSON.stringify(data));}catch(e){}
   try{
+    var token=await getToken();
+    if(!token)throw new Error('no token');
     var r=await fetch(PA_WRITE,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({data:JSON.stringify(data)})
     });
     if(!r.ok)throw new Error('HTTP '+r.status);
