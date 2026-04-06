@@ -334,7 +334,8 @@ async function fetchLatestData(){
     console.log('[PA_READ] status:', r.status);
     if(!r.ok)return null;
     var raw=await r.text();
-    console.log('[PA_READ] raw:', raw.substring(0,300));
+    console.log('[PA_READ] raw:', raw ? raw.substring(0,300) : '(empty)');
+    if(!raw || raw==='[]' || raw==='null')return null;
     var items=[];
     try{var parsed=JSON.parse(raw);items=Array.isArray(parsed)?parsed:(parsed.value||[parsed]);}catch(e){console.log('[PA_READ] parse err:',e);}
     console.log('[PA_READ] items.length:', items.length, JSON.stringify(items[0]).substring(0,100));
@@ -362,9 +363,11 @@ async function persistWithData(data){
   evs=data.evs; maint=data.maint; cfg=data.cfg;
   try{localStorage.setItem('3dp_sp_local',JSON.stringify(data));}catch(e){}
   try{
+    var token=await getToken();
+    if(!token)throw new Error('no token');
     var r=await fetch(PA_WRITE,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({data:JSON.stringify(data)})
     });
     if(!r.ok)throw new Error('HTTP '+r.status);
