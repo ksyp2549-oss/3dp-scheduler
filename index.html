@@ -509,9 +509,17 @@ function render(){
           lane.classList.add('lane-over');
           var rect=lane.getBoundingClientRect();var y=e.clientY-rect.top+lane.scrollTop;
           var acc=0,cHr=0,cFr=0;for(var hr=0;hr<24;hr++){var hh=hrH(hr);if(y<acc+hh){cHr=hr;cFr=(y-acc)/hh;break;}acc+=hh;}
-          var rawMin=cHr*60+Math.round(cFr*60/15)*15;var dur=toMin(dragEv.eH,dragEv.eM)-toMin(dragEv.sH,dragEv.sM);
-          var ns=rawMin,ne=ns+dur;var top=hrTop(Math.floor(ns/60))+(ns%60)/60*hrH(Math.floor(ns/60));var neh=Math.min(Math.floor(ne/60),23);var bot=hrTop(neh)+(ne%60)/60*hrH(neh);
-          var pv=document.createElement('div');pv.className='dprev';pv.style.top=top+'px';pv.style.height=Math.max(bot-top,4)+'px';lane.appendChild(pv);
+          var rawMin=cHr*60+Math.round(cFr*60/15)*15;
+          var _dev2=normalizeEv(dragEv);var dur=dayDiff(_dev2.startDay,_dev2.endDay)*1440+toMin(_dev2.eH,_dev2.eM)-toMin(_dev2.sH,_dev2.sM);
+          var ns=rawMin,ne=ns+dur;
+          // プレビュー：当日分（0〜1440分）にクリップして表示
+          var visNe=Math.min(ne,1440);
+          var top=hrTop(Math.floor(ns/60))+(ns%60)/60*hrH(Math.floor(ns/60));
+          var neh=Math.min(Math.floor(visNe/60),23);
+          var bot=ne>=1440?totalH():hrTop(neh)+(visNe%60)/60*hrH(neh);
+          var pv=document.createElement('div');pv.className='dprev';pv.style.top=top+'px';pv.style.height=Math.max(bot-top,4)+'px';
+          if(ne>1440){pv.style.borderBottom='2px dashed rgba(255,255,255,0.5)';}
+          lane.appendChild(pv);
         });
         lane.addEventListener('dragleave',function(){lane.classList.remove('lane-over');document.querySelectorAll('.dprev').forEach(function(el){el.remove()});});
         lane.addEventListener('drop',async function(e){
