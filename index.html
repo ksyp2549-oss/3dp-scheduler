@@ -236,7 +236,7 @@ var MSAL_CONFIG = {
   },
   cache: { cacheLocation: 'sessionStorage' }
 };
-var PA_SCOPES = ['https://service.flow.microsoft.com//.default'];
+var PA_SCOPES = ['https://service.flow.microsoft.com/Flows.Read.All', 'openid', 'profile'];
 var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
 var _msalInitialized = false;
 
