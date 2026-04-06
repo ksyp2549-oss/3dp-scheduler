@@ -236,7 +236,7 @@ var MSAL_CONFIG = {
   },
   cache: { cacheLocation: 'sessionStorage' }
 };
-var PA_SCOPES = ['https://service.flow.microsoft.com/Flows.Read.All', 'openid', 'profile'];
+var PA_SCOPES = ['https://service.flow.microsoft.com//.default'];
 var msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
 var _msalInitialized = false;
 
@@ -328,9 +328,7 @@ var SP_ITEM_ID = null; // 既存アイテムのID
 // SharePointから最新データを取得（グローバル状態は更新しない）
 async function fetchLatestData(){
   try{
-    var token=await getToken();
-    if(!token)return null;
-    var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({})});
+    var r=await fetch(PA_READ,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
     if(!r.ok)return null;
     var raw=await r.text();
     var items=[];
@@ -358,11 +356,9 @@ async function persistWithData(data){
   evs=data.evs; maint=data.maint; cfg=data.cfg;
   try{localStorage.setItem('3dp_sp_local',JSON.stringify(data));}catch(e){}
   try{
-    var token=await getToken();
-    if(!token)throw new Error('no token');
     var r=await fetch(PA_WRITE,{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({data:JSON.stringify(data)})
     });
     if(!r.ok)throw new Error('HTTP '+r.status);
