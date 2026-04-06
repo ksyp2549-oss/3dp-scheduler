@@ -294,7 +294,15 @@ function isToday(d){return d.toDateString()===new Date().toDateString()}
 function getWS(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d}
 function addDays(ds,n){var d=new Date(ds.replace(/-/g,"/"));d.setDate(d.getDate()+n);return fmtD(d);}
 function dayDiff(ds1,ds2){var a=new Date(ds1.replace(/-/g,"/"));var b=new Date(ds2.replace(/-/g,"/"));return Math.round((b-a)/86400000);}
-function normalizeEv(ev){if(!ev.startDay){ev.startDay=ev.day;ev.endDay=ev.day;}return ev;}
+function normalizeEv(ev){
+  if(!ev.startDay){ev.startDay=ev.day;ev.endDay=ev.day;}
+  if(!ev.endDay){ev.endDay=ev.startDay;}
+  // startDay===endDayなのに終了時刻が開始時刻より早い場合、日付またぎとして補正
+  if(ev.startDay===ev.endDay && toMin(ev.eH,ev.eM)<toMin(ev.sH,ev.sM)){
+    ev.endDay=addDays(ev.startDay,1);
+  }
+  return ev;
+}
 
 // ===== SharePoint REST API =====
 function setSyncBadge(ok, msg){
