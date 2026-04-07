@@ -626,7 +626,41 @@ function openJobModal(ev, day, pr){
   var durField=document.createElement('div');durField.className='fl';durField.appendChild(mLabel('印刷時間'));durField.appendChild(durRow);
   box.appendChild(durField);
 
-  if(isEdit){var ti=document.createElement('div');ti.style.cssText='font-size:11px;color:var(--text2);padding:5px 9px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:10px';var _ne=normalizeEv(ev);ti.textContent='現在: '+_ne.startDay+' '+fmtHm(_ne.sH,_ne.sM)+'〜'+(_ne.startDay!==_ne.endDay?_ne.endDay+' ':'')+fmtHm(_ne.eH,_ne.eM)+'　('+_ne.printer+')';box.appendChild(ti);}
+  // 日時直接編集フィールド（編集時・新規時共通）
+  var _ne=isEdit?normalizeEv(ev):{startDay:day,endDay:day,sH:9,sM:0,eH:12,eM:0};
+  // 開始日
+  var inStartDay=mInput('date',_ne.startDay.replace(/-(\d)$/,'-0$1').replace(/-(\d)-(\d)$/,function(m,a,b){return '-'+('0'+a).slice(-2)+'-'+('0'+b).slice(-2)}));
+  // 開始時刻
+  var inStartTime=mInput('time',fmtHm(_ne.sH,_ne.sM));inStartTime.step='900';
+  // 終了日
+  var inEndDay=mInput('date',_ne.endDay.replace(/-(\d)$/,'-0$1').replace(/-(\d)-(\d)$/,function(m,a,b){return '-'+('0'+a).slice(-2)+'-'+('0'+b).slice(-2)}));
+  // 終了時刻
+  var inEndTime=mInput('time',fmtHm(_ne.eH,_ne.eM));inEndTime.step='900';
+  // 開始行
+  var dtRow1=document.createElement('div');dtRow1.style.cssText='display:flex;gap:6px;align-items:center';
+  inStartDay.style.flex='1';inStartTime.style.width='90px';
+  dtRow1.appendChild(inStartDay);dtRow1.appendChild(inStartTime);
+  // 終了行
+  var dtRow2=document.createElement('div');dtRow2.style.cssText='display:flex;gap:6px;align-items:center;margin-top:4px';
+  var dtSep=document.createElement('span');dtSep.textContent='〜';dtSep.style.cssText='font-size:12px;color:var(--text2)';
+  inEndDay.style.flex='1';inEndTime.style.width='90px';
+  dtRow2.appendChild(dtSep);dtRow2.appendChild(inEndDay);dtRow2.appendChild(inEndTime);
+  var dtWrap=document.createElement('div');dtWrap.appendChild(dtRow1);dtWrap.appendChild(dtRow2);
+  box.appendChild(document.createElement('div'));
+  box.lastChild;
+  var dtField=document.createElement('div');dtField.className='fl';dtField.appendChild(mLabel('日時指定'));dtField.appendChild(dtWrap);
+  box.appendChild(dtField);
+  // 日時変更時に印刷時間を自動更新
+  function syncDur(){
+    try{
+      var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
+      if(!sd||!st||!ed||!et)return;
+      var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
+      var diffH=(eDate-sDate)/3600000;
+      if(diffH>0)inDur.value=diffH.toFixed(1);
+    }catch(e){}
+  }
+  [inStartDay,inStartTime,inEndDay,inEndTime].forEach(function(el){el.addEventListener('change',syncDur);});
 
   box.appendChild(mDivider());
 
@@ -678,29 +712,41 @@ function openJobModal(ev, day, pr){
   var cancelbtn=document.createElement('button');cancelbtn.className='btn';cancelbtn.textContent='キャンセル';cancelbtn.addEventListener('click',function(){if(ov.parentNode)ov.parentNode.removeChild(ov)});
   var savebtn=document.createElement('button');savebtn.className='btn btn-primary';savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';
   savebtn.addEventListener('click',async function(){
-    var dur=parseFloat(inDur.value);
-    if(!dur||dur<=0){statusEl.style.display='block';statusEl.textContent='⚠ 印刷時間を入力してください';return;}
-    var durMin=Math.round(dur*60);
-    savebtn.disabled=true;savebtn.textContent='🔍 検索中...';statusEl.style.display='none';
-    // 保存直前に最新データを取得（同時編集対応）タイムアウト10秒
+    savebtn.disabled=true;savebtn.textContent='🔍 処理中...';statusEl.style.display='none';
+    // 最新データ取得（タイムアウト10秒）
     var latest;
     try{
       var fetchP=fetchLatestData();
       var timeoutP=new Promise(function(res){setTimeout(function(){res(null);},10000);});
       latest=(await Promise.race([fetchP,timeoutP]))||localData();
     }catch(e){latest=localData();}
-    // 空き検索用データ（編集中のジョブは除外）
-    var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
-    var slot=findSlot(durMin,curP,searchData);
-    if(!slot){statusEl.style.display='block';statusEl.textContent='⚠ 21日以内に空きが見つかりませんでした。設定を確認してください。';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
-    var newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
+
+    var newEv;
+    // 日時直接指定モード（開始日・時刻が入力されていれば使う）
+    var sdVal=inStartDay.value,stVal=inStartTime.value,edVal=inEndDay.value,etVal=inEndTime.value;
+    if(sdVal&&stVal&&edVal&&etVal){
+      var stP=stVal.split(':'),etP=etVal.split(':');
+      newEv={id:isEdit?ev.id:String(Date.now()),
+        startDay:sdVal,endDay:edVal,day:sdVal,
+        sH:+stP[0],sM:+stP[1],eH:+etP[0],eM:+etP[1],
+        printer:curP,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
+    } else {
+      // 空き自動検索モード
+      var dur=parseFloat(inDur.value);
+      if(!dur||dur<=0){statusEl.style.display='block';statusEl.textContent='⚠ 印刷時間を入力してください';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
+      var durMin=Math.round(dur*60);
+      var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
+      var slot=findSlot(durMin,curP,searchData);
+      if(!slot){statusEl.style.display='block';statusEl.textContent='⚠ 21日以内に空きが見つかりませんでした。設定を確認してください。';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
+      newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
+    }
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
     else latest.evs.push(newEv);
     await persistWithData(latest);
-    var evDate=new Date(slot.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-1);var diff=Math.round((evDate-tw)/86400000);
-    wOff=Math.floor(diff/14)*14>0?1:0;
+    var evDate=new Date(newEv.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-1);var diff=Math.round((evDate-tw)/86400000);
+    wOff=diff>=14?Math.floor(diff/14):0;
     if(ov.parentNode)ov.parentNode.removeChild(ov);render();
-    showToast('✓ '+slot.startDay+(slot.startDay!==slot.endDay?' → '+slot.endDay:'')+' '+(slot.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
+    showToast('✓ '+newEv.startDay+(newEv.startDay!==newEv.endDay?' → '+newEv.endDay:'')+' '+(newEv.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
   });
   brow.appendChild(cancelbtn);brow.appendChild(savebtn);box.appendChild(brow);
   var note=document.createElement('div');note.className='modal-note';note.textContent='稼働時間帯・間隔は⚙設定から変更できます';box.appendChild(note);
