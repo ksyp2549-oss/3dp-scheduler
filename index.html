@@ -361,12 +361,13 @@ async function fetchLatestData(){
     var items=[];
     try{var parsed=JSON.parse(raw);items=Array.isArray(parsed)?parsed:(parsed.value||[parsed]);}catch(e){console.log('[PA_READ] parse err:',e);}
     console.log('[PA_READ] items.length:', items.length, JSON.stringify(items[0]).substring(0,100));
-    if(items.length>0){
-      var item=items[items.length-1];
+    // JsonDataがある最新のアイテムを探す
+    for(var ii=items.length-1;ii>=0;ii--){
+      var item=items[ii];
       SP_ITEM_ID=item.Id||item.id||1;
       var titleStr=item.JsonData||item.jsonData||item.Title||item.title||'';
-      console.log('[PA_READ] titleStr:', titleStr ? titleStr.substring(0,100) : '(empty)');
-      if(titleStr){
+      console.log('[PA_READ] titleStr:', titleStr ? titleStr.substring(0,100) : '(empty)', 'ID:', SP_ITEM_ID);
+      if(titleStr && titleStr.indexOf('"evs"')>=0){
         var payload=JSON.parse(titleStr);
         return{evs:(payload.evs||[]).map(normalizeEv),maint:Object.assign({s:false,i:false},payload.maint||{}),cfg:Object.assign({from:'09:00',to:'17:00',gap:240,weekend:false,wdMode:'weekday',startOffset:60},payload.cfg||{})};
       }
@@ -498,7 +499,7 @@ function render(){
   // day headers
   var dh=document.createElement('div');dh.className='dayhdrs';
   dh.appendChild(Object.assign(document.createElement('div'),{className:'dh-corner'}));
-  for(var d=0;d<14;d++){var day=new Date(ws);day.setDate(ws.getDate()+d);var h=document.createElement('div');h.className='dh'+(isToday(day)?' today-col':'');h.innerHTML='<div class="dow">'+DAYS[d%7]+'</div><div class="dt">'+(day.getMonth()+1)+'/'+day.getDate()+'</div>';dh.appendChild(h);}
+  for(var d=0;d<14;d++){var day=new Date(ws);day.setDate(ws.getDate()+d);var h=document.createElement('div');h.className='dh'+(isToday(day)?' today-col':'');h.innerHTML='<div class="dow">'+DAYS[day.getDay()]+'</div><div class="dt">'+(day.getMonth()+1)+'/'+day.getDate()+'</div>';dh.appendChild(h);}
   ci.appendChild(dh);
 
   // body
