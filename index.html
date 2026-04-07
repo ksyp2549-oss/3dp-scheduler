@@ -291,7 +291,7 @@ function fmtD(d){return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
 function fmtHm(h,m){return('0'+h).slice(-2)+':'+('0'+(m||0)).slice(-2)}
 function toMin(h,m){return h*60+(m||0)}
 function isToday(d){return d.toDateString()===new Date().toDateString()}
-function getWS(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d}
+function getWS(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-1+wOff*14);return d}
 function addDays(ds,n){var d=new Date(ds.replace(/-/g,"/"));d.setDate(d.getDate()+n);return fmtD(d);}
 function dayDiff(ds1,ds2){var a=new Date(ds1.replace(/-/g,"/"));var b=new Date(ds2.replace(/-/g,"/"));return Math.round((b-a)/86400000);}
 function normalizeEv(ev){
@@ -697,8 +697,8 @@ function openJobModal(ev, day, pr){
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
     else latest.evs.push(newEv);
     await persistWithData(latest);
-    var evDate=new Date(slot.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-tw.getDay());var ew=new Date(evDate);ew.setDate(evDate.getDate()-evDate.getDay());
-    wOff=Math.round((ew-tw)/(7*24*3600*1000));
+    var evDate=new Date(slot.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-1);var diff=Math.round((evDate-tw)/86400000);
+    wOff=Math.floor(diff/14)*14>0?1:0;
     if(ov.parentNode)ov.parentNode.removeChild(ov);render();
     showToast('✓ '+slot.startDay+(slot.startDay!==slot.endDay?' → '+slot.endDay:'')+' '+(slot.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
   });
