@@ -616,15 +616,7 @@ function openJobModal(ev, day, pr){
   var ptField=document.createElement('div');ptField.className='fl';ptField.appendChild(mLabel('希望プリンター'));ptField.appendChild(ptW);
   box.appendChild(ptField);updPT();
 
-  // Duration
-  var durVal=isEdit?(function(){var _e=normalizeEv(ev);return(dayDiff(_e.startDay,_e.endDay)*1440+toMin(_e.eH,_e.eM)-toMin(_e.sH,_e.sM))/60;}()).toFixed(1):'3';
-  var durRow=document.createElement('div');durRow.className='dur-row';
-  var inDur=mInput('number',durVal);inDur.className='fi dur-input';inDur.min='0.5';inDur.max='96';inDur.step='0.5';
-  var durU=document.createElement('span');durU.className='dur-unit';durU.textContent='時間';
-  var durHint=document.createElement('span');durHint.className='dur-hint';durHint.textContent='現在時刻から空き検索';
-  durRow.appendChild(inDur);durRow.appendChild(durU);durRow.appendChild(durHint);
-  var durField=document.createElement('div');durField.className='fl';durField.appendChild(mLabel('印刷時間'));durField.appendChild(durRow);
-  box.appendChild(durField);
+  var inDur={value:'0'}; // 印刷時間廃止（ダミー）
 
   // 日時直接編集フィールド（編集時・新規時共通）
   var _ne=isEdit?normalizeEv(ev):{startDay:day,endDay:day,sH:9,sM:0,eH:12,eM:0};
@@ -650,17 +642,7 @@ function openJobModal(ev, day, pr){
   box.lastChild;
   var dtField=document.createElement('div');dtField.className='fl';dtField.appendChild(mLabel('日時指定'));dtField.appendChild(dtWrap);
   box.appendChild(dtField);
-  // 日時変更時に印刷時間を自動更新
-  function syncDur(){
-    try{
-      var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
-      if(!sd||!st||!ed||!et)return;
-      var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
-      var diffH=(eDate-sDate)/3600000;
-      if(diffH>0)inDur.value=diffH.toFixed(1);
-    }catch(e){}
-  }
-  [inStartDay,inStartTime,inEndDay,inEndTime].forEach(function(el){el.addEventListener('change',syncDur);});
+
 
   box.appendChild(mDivider());
 
@@ -710,9 +692,9 @@ function openJobModal(ev, day, pr){
   });brow.appendChild(delbtn);}
   var sp=document.createElement('div');sp.style.flex='1';brow.appendChild(sp);
   var cancelbtn=document.createElement('button');cancelbtn.className='btn';cancelbtn.textContent='キャンセル';cancelbtn.addEventListener('click',function(){if(ov.parentNode)ov.parentNode.removeChild(ov)});
-  var savebtn=document.createElement('button');savebtn.className='btn btn-primary';savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';
+  var savebtn=document.createElement('button');savebtn.className='btn btn-primary';savebtn.textContent=isEdit?'更新':'追加';
   savebtn.addEventListener('click',async function(){
-    savebtn.disabled=true;savebtn.textContent='🔍 処理中...';statusEl.style.display='none';
+    savebtn.disabled=true;savebtn.textContent='保存中...';statusEl.style.display='none';
     // 最新データ取得（タイムアウト10秒）
     var latest;
     try{
@@ -721,25 +703,13 @@ function openJobModal(ev, day, pr){
       latest=(await Promise.race([fetchP,timeoutP]))||localData();
     }catch(e){latest=localData();}
 
-    var newEv;
-    // 日時直接指定モード（開始日・時刻が入力されていれば使う）
     var sdVal=inStartDay.value,stVal=inStartTime.value,edVal=inEndDay.value,etVal=inEndTime.value;
-    if(sdVal&&stVal&&edVal&&etVal){
-      var stP=stVal.split(':'),etP=etVal.split(':');
-      newEv={id:isEdit?ev.id:String(Date.now()),
-        startDay:sdVal,endDay:edVal,day:sdVal,
-        sH:+stP[0],sM:+stP[1],eH:+etP[0],eM:+etP[1],
-        printer:curP,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
-    } else {
-      // 空き自動検索モード
-      var dur=parseFloat(inDur.value);
-      if(!dur||dur<=0){statusEl.style.display='block';statusEl.textContent='⚠ 印刷時間を入力してください';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
-      var durMin=Math.round(dur*60);
-      var searchData=isEdit?{evs:latest.evs.filter(function(x){return x.id!==ev.id}),maint:latest.maint,cfg:latest.cfg}:latest;
-      var slot=findSlot(durMin,curP,searchData);
-      if(!slot){statusEl.style.display='block';statusEl.textContent='⚠ 21日以内に空きが見つかりませんでした。設定を確認してください。';savebtn.disabled=false;savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';return;}
-      newEv={id:isEdit?ev.id:String(Date.now()),startDay:slot.startDay,endDay:slot.endDay,day:slot.startDay,sH:slot.sH,sM:slot.sM,eH:slot.eH,eM:slot.eM,printer:slot.printer,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
-    }
+    if(!sdVal||!stVal||!edVal||!etVal){statusEl.style.display='block';statusEl.textContent='⚠ 日時を入力してください';savebtn.disabled=false;savebtn.textContent=isEdit?'更新':'追加';return;}
+    var stP=stVal.split(':'),etP=etVal.split(':');
+    var newEv={id:isEdit?ev.id:String(Date.now()),
+      startDay:sdVal,endDay:edVal,day:sdVal,
+      sH:+stP[0],sM:+stP[1],eH:+etP[0],eM:+etP[1],
+      printer:curP,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
     else latest.evs.push(newEv);
     await persistWithData(latest);
