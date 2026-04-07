@@ -673,10 +673,10 @@ function openJobModal(ev, day, pr){
     var delId=ev.id;
     var data=(await fetchLatestData())||localData();
     data.evs=data.evs.filter(function(x){return x.id!==delId});
-    await persistWithData(data);document.body.removeChild(ov);render();
+    await persistWithData(data);if(ov.parentNode)ov.parentNode.removeChild(ov);render();
   });brow.appendChild(delbtn);}
   var sp=document.createElement('div');sp.style.flex='1';brow.appendChild(sp);
-  var cancelbtn=document.createElement('button');cancelbtn.className='btn';cancelbtn.textContent='キャンセル';cancelbtn.addEventListener('click',function(){document.body.removeChild(ov)});
+  var cancelbtn=document.createElement('button');cancelbtn.className='btn';cancelbtn.textContent='キャンセル';cancelbtn.addEventListener('click',function(){if(ov.parentNode)ov.parentNode.removeChild(ov)});
   var savebtn=document.createElement('button');savebtn.className='btn btn-primary';savebtn.textContent=isEdit?'空きを探して更新':'空きを探して追加';
   savebtn.addEventListener('click',async function(){
     var dur=parseFloat(inDur.value);
@@ -700,12 +700,12 @@ function openJobModal(ev, day, pr){
     await persistWithData(latest);
     var evDate=new Date(slot.startDay.replace(/-/g,'/'));var tw=new Date();tw.setHours(0,0,0,0);tw.setDate(tw.getDate()-tw.getDay());var ew=new Date(evDate);ew.setDate(evDate.getDate()-evDate.getDay());
     wOff=Math.round((ew-tw)/(7*24*3600*1000));
-    document.body.removeChild(ov);render();
+    if(ov.parentNode)ov.parentNode.removeChild(ov);render();
     showToast('✓ '+slot.startDay+(slot.startDay!==slot.endDay?' → '+slot.endDay:'')+' '+(slot.printer==='sankawa'?'寒川':'岩手')+' '+fmtHm(newEv.sH,newEv.sM)+'〜'+fmtHm(newEv.eH,newEv.eM)+' に配置しました');
   });
   brow.appendChild(cancelbtn);brow.appendChild(savebtn);box.appendChild(brow);
   var note=document.createElement('div');note.className='modal-note';note.textContent='稼働時間帯・間隔は⚙設定から変更できます';box.appendChild(note);
-  ov.appendChild(box);ov.addEventListener('click',function(e){if(e.target===ov)document.body.removeChild(ov)});
+  ov.appendChild(box);ov.addEventListener('click',function(e){if(e.target===ov)if(ov.parentNode)ov.parentNode.removeChild(ov)});
   document.body.appendChild(ov);
 }
 
@@ -742,16 +742,16 @@ function openSettings(){
   updWd();wdField.appendChild(wdTabs);box.appendChild(wdField);
   box.appendChild(mDivider());
   var brow=document.createElement('div');brow.className='btn-row';var sp=document.createElement('div');sp.style.flex='1';brow.appendChild(sp);
-  var cb=document.createElement('button');cb.className='btn';cb.textContent='キャンセル';cb.addEventListener('click',function(){document.body.removeChild(ov)});
+  var cb=document.createElement('button');cb.className='btn';cb.textContent='キャンセル';cb.addEventListener('click',function(){if(ov.parentNode)ov.parentNode.removeChild(ov)});
   var sb=document.createElement('button');sb.className='btn btn-primary';sb.textContent='保存';
   sb.addEventListener('click',async function(){
     // 最新データを取得してから設定だけ上書き（同時編集対応）
     var data=(await fetchLatestData())||localData();
     data.cfg.from=inFrom.value||'09:00';data.cfg.to=inTo.value||'17:00';data.cfg.gap=parseInt(inGap.value)||240;data.cfg.startOffset=parseInt(inOffset.value)||60;data.cfg.weekend=(wdMode!=='weekday');data.cfg.wdMode=wdMode;
-    await persistWithData(data);document.body.removeChild(ov);showToast('✓ 設定を保存しました');
+    await persistWithData(data);if(ov.parentNode)ov.parentNode.removeChild(ov);showToast('✓ 設定を保存しました');
   });
   brow.appendChild(cb);brow.appendChild(sb);box.appendChild(brow);
-  ov.appendChild(box);ov.addEventListener('click',function(e){if(e.target===ov)document.body.removeChild(ov)});
+  ov.appendChild(box);ov.addEventListener('click',function(e){if(e.target===ov)if(ov.parentNode)ov.parentNode.removeChild(ov)});
   document.body.appendChild(ov);
 }
 
