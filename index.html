@@ -645,6 +645,50 @@ function openJobModal(ev, day, pr){
   var dtField=document.createElement('div');dtField.className='fl';dtField.appendChild(mLabel('日時指定'));dtField.appendChild(dtWrap);
   box.appendChild(dtField);
 
+  // 印刷時間表示（読み取り専用）
+  var durDisp=document.createElement('div');
+  durDisp.style.cssText='font-size:12px;color:var(--text2);padding:4px 2px;margin-top:2px';
+  durDisp.textContent='';
+  box.appendChild(durDisp);
+
+  function updateDurDisp(){
+    var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
+    if(!sd||!st||!ed||!et){durDisp.textContent='';return;}
+    var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
+    var diffMs=eDate-sDate;
+    if(diffMs<=0){durDisp.textContent='⚠ 終了は開始より後にしてください';durDisp.style.color='#ff6b6b';return;}
+    durDisp.style.color='var(--text2)';
+    var diffH=Math.floor(diffMs/3600000);
+    var diffM=Math.round((diffMs%3600000)/60000);
+    durDisp.textContent='印刷時間: '+(diffM>0?(diffH+'時間'+diffM+'分'):(diffH+'時間'));
+  }
+
+  function validateEndTime(){
+    var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
+    if(!sd||!st||!ed||!et)return;
+    var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
+    if(eDate<=sDate){
+      // 終了を開始+1時間に自動補正
+      var fixed=new Date(sDate.getTime()+3600000);
+      inEndDay.value=fixed.toISOString().slice(0,10);
+      inEndTime.value=('0'+fixed.getHours()).slice(-2)+':'+('0'+fixed.getMinutes()).slice(-2);
+    }
+    updateDurDisp();
+  }
+
+  inStartDay.addEventListener('change',validateEndTime);
+  inStartTime.addEventListener('change',validateEndTime);
+  inEndDay.addEventListener('change',updateDurDisp);
+  inEndTime.addEventListener('change',function(){
+    var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
+    if(sd&&st&&ed&&et){
+      var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
+      if(eDate<=sDate){inEndTime.value=st;inEndDay.value=inStartDay.value;}
+    }
+    updateDurDisp();
+  });
+  updateDurDisp();
+
 
   box.appendChild(mDivider());
 
