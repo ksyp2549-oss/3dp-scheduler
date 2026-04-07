@@ -165,6 +165,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .ev-sub{display:none}
 .dprev{position:absolute;left:1px;right:1px;border-radius:4px;z-index:8;pointer-events:none;border:1px dashed var(--blue);background:rgba(79,172,254,0.08)}
 
+/* TIME INPUT */
+input[type=time]{-webkit-appearance:none;appearance:none;background:rgba(79,172,254,0.08);border:1px solid rgba(79,172,254,0.4);border-radius:8px;color:#fff;padding:6px 10px;font-size:13px;cursor:pointer;text-align:center;width:100%;box-sizing:border-box}
+input[type=time]:hover{background:rgba(79,172,254,0.15);border-color:rgba(79,172,254,0.7)}
+input[type=time]:focus{outline:none;background:rgba(79,172,254,0.2);border-color:#4facfe}
+input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.7;cursor:pointer;width:16px;height:16px}
+input[type=date]{-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:#fff;padding:6px 10px;font-size:13px;cursor:pointer;width:100%;box-sizing:border-box}
+input[type=date]:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.3)}
+input[type=date]:focus{outline:none;border-color:#4facfe}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.5;cursor:pointer}
+
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(4px)}
 .modal-box{background:linear-gradient(160deg,#161b22 0%,#1c2333 100%);border:1px solid var(--border2);border-radius:14px;padding:24px;width:360px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(79,172,254,0.1);position:relative}
@@ -626,19 +636,19 @@ function openJobModal(ev, day, pr){
   // 開始日
   var inStartDay=mInput('date',isEdit?toISO(_ne.startDay):todayISO);
   // 開始時刻
-  var inStartTime=mInput('time',fmtHm(_ne.sH,_ne.sM));inStartTime.step='900';
+  var inStartTime=mInput('time',fmtHm(_ne.sH,_ne.sM));inStartTime.step='900';inStartTime.title='クリックして時刻を選択';
   // 終了日
   var inEndDay=mInput('date',isEdit?toISO(_ne.endDay):todayISO);
   // 終了時刻
-  var inEndTime=mInput('time',fmtHm(_ne.eH,_ne.eM));inEndTime.step='900';
+  var inEndTime=mInput('time',fmtHm(_ne.eH,_ne.eM));inEndTime.step='900';inEndTime.title='クリックして時刻を選択';
   // 開始行
   var dtRow1=document.createElement('div');dtRow1.style.cssText='display:flex;gap:6px;align-items:center';
-  inStartDay.style.flex='1';inStartTime.style.width='90px';
+  inStartDay.style.flex='1';inStartTime.style.width='110px';inStartTime.style.minWidth='110px';
   dtRow1.appendChild(inStartDay);dtRow1.appendChild(inStartTime);
   // 終了行
   var dtRow2=document.createElement('div');dtRow2.style.cssText='display:flex;gap:6px;align-items:center;margin-top:4px';
   var dtSep=document.createElement('span');dtSep.textContent='〜';dtSep.style.cssText='font-size:12px;color:var(--text2)';
-  inEndDay.style.flex='1';inEndTime.style.width='90px';
+  inEndDay.style.flex='1';inEndTime.style.width='110px';inEndTime.style.minWidth='110px';
   dtRow2.appendChild(dtSep);dtRow2.appendChild(inEndDay);dtRow2.appendChild(inEndTime);
   var dtWrap=document.createElement('div');dtWrap.appendChild(dtRow1);dtWrap.appendChild(dtRow2);
   box.appendChild(document.createElement('div'));
