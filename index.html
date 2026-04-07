@@ -620,12 +620,14 @@ function openJobModal(ev, day, pr){
 
   // 日時直接編集フィールド（編集時・新規時共通）
   var _ne=isEdit?normalizeEv(ev):{startDay:day,endDay:day,sH:9,sM:0,eH:12,eM:0};
+  function toISO(ds){var p=ds.split('-');return p[0]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[2]).slice(-2);}
+  var todayISO=toISO(fmtD(new Date()));
   // 開始日
-  var inStartDay=mInput('date',_ne.startDay.replace(/-(\d)$/,'-0$1').replace(/-(\d)-(\d)$/,function(m,a,b){return '-'+('0'+a).slice(-2)+'-'+('0'+b).slice(-2)}));
+  var inStartDay=mInput('date',isEdit?toISO(_ne.startDay):todayISO);
   // 開始時刻
   var inStartTime=mInput('time',fmtHm(_ne.sH,_ne.sM));inStartTime.step='900';
   // 終了日
-  var inEndDay=mInput('date',_ne.endDay.replace(/-(\d)$/,'-0$1').replace(/-(\d)-(\d)$/,function(m,a,b){return '-'+('0'+a).slice(-2)+'-'+('0'+b).slice(-2)}));
+  var inEndDay=mInput('date',isEdit?toISO(_ne.endDay):todayISO);
   // 終了時刻
   var inEndTime=mInput('time',fmtHm(_ne.eH,_ne.eM));inEndTime.step='900';
   // 開始行
