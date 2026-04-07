@@ -752,8 +752,10 @@ function openJobModal(ev, day, pr){
     var sdVal=inStartDay.value,stVal=inStartTime.value,edVal=inEndDay.value,etVal=inEndTime.value;
     if(!sdVal||!stVal||!edVal||!etVal){statusEl.style.display='block';statusEl.textContent='⚠ 日時を入力してください';savebtn.disabled=false;savebtn.textContent=isEdit?'更新':'追加';return;}
     var stP=stVal.split(':'),etP=etVal.split(':');
+    // input[type=date]はYYYY-MM-DD形式を返すので内部形式(YYYY-M-D)に変換
+    function isoToInternal(s){var p=s.split('-');return p[0]+'-'+parseInt(p[1])+'-'+parseInt(p[2]);}
     var newEv={id:isEdit?ev.id:String(Date.now()),
-      startDay:sdVal,endDay:edVal,day:sdVal,
+      startDay:isoToInternal(sdVal),endDay:isoToInternal(edVal),day:isoToInternal(sdVal),
       sH:+stP[0],sM:+stP[1],eH:+etP[0],eM:+etP[1],
       printer:curP,u:curU,mat:curMat,req:inReq.value,cont:inCont.value,memo:inMemo.value};
     if(isEdit){var idx=latest.evs.findIndex(function(x){return x.id===ev.id});if(idx>=0)latest.evs[idx]=newEv;else latest.evs.push(newEv);}
