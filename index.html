@@ -656,7 +656,7 @@ function openJobModal(ev, day, pr){
     if(!sd||!st||!ed||!et){durDisp.textContent='';return;}
     var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
     var diffMs=eDate-sDate;
-    if(diffMs<=0){durDisp.textContent='⚠ 終了は開始より後にしてください';durDisp.style.color='#ff6b6b';return;}
+    if(diffMs<0){durDisp.textContent='⚠ 終了は開始より後にしてください';durDisp.style.color='#ff6b6b';return;}
     durDisp.style.color='var(--text2)';
     var diffH=Math.floor(diffMs/3600000);
     var diffM=Math.round((diffMs%3600000)/60000);
@@ -683,7 +683,7 @@ function openJobModal(ev, day, pr){
     var sd=inStartDay.value,st=inStartTime.value,ed=inEndDay.value,et=inEndTime.value;
     if(sd&&st&&ed&&et){
       var sDate=new Date(sd+'T'+st);var eDate=new Date(ed+'T'+et);
-      if(eDate<=sDate){inEndTime.value=st;inEndDay.value=inStartDay.value;}
+      if(eDate<sDate){inEndTime.value=st;inEndDay.value=inStartDay.value;}
     }
     updateDurDisp();
   });
